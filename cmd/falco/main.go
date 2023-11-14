@@ -294,6 +294,9 @@ func runTest(runner *Runner, rslv resolver.Resolver) error {
 			writeln(red, err.Error())
 			return ErrExit
 		}
+		if factory.Statistics.Fails > 0 {
+			return ErrExit
+		}
 		return nil
 	}
 
@@ -368,7 +371,7 @@ func runTest(runner *Runner, rslv resolver.Resolver) error {
 	write(white, "%d total, ", totalCount)
 	writeln(white, "%d assertions", factory.Statistics.Asserts)
 
-	if failedCount > 0 {
+	if factory.Statistics.Fails > 0 {
 		return ErrExit
 	} else {
 		return nil

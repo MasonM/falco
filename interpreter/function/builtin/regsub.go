@@ -20,7 +20,12 @@ func Regsub_Validate(args []value.Value) error {
 	}
 	for i := range args {
 		if args[i].Type() != Regsub_ArgumentTypes[i] {
-			return errors.TypeMismatch(Regsub_Name, i+1, Regsub_ArgumentTypes[i], args[i].Type())
+			if args[i].Type() == value.BackendType && Regsub_ArgumentTypes[i] == value.StringType {
+				v := args[i].(*value.Backend).Value.Name.Value
+				args[i] = &value.String{Value: v}
+			} else {
+				return errors.TypeMismatch(Regsub_Name, i+1, Regsub_ArgumentTypes[i], args[i].Type())
+			}
 		}
 	}
 	return nil

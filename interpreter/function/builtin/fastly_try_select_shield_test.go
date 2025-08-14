@@ -70,43 +70,54 @@ func Test_Fastly_try_select_shield(t *testing.T) {
 	}
 	fallbackBackend.Healthy.Store(true)
 
-	ctx := &context.Context{}
-
 	tests := []struct {
-		name     string
-		shield   *value.Backend
-		fallback *value.Backend
-		expected *value.Backend
+		name        string
+		shield      *value.Backend
+		fallback    *value.Backend
+		expected    *value.Backend
+		expectError *value.String
 	}{
 		{
-			name:     "healthy shield backend returns shield",
-			shield:   shieldBackend,
-			fallback: fallbackBackend,
-			expected: shieldBackend,
+			name:        "healthy shield backend returns shield",
+			shield:      shieldBackend,
+			fallback:    fallbackBackend,
+			expected:    shieldBackend,
+			expectError: nil,
 		},
 		{
-			name:     "unhealthy shield backend returns fallback",
-			shield:   unhealthyShieldBackend,
-			fallback: fallbackBackend,
-			expected: fallbackBackend,
+			name:        "unhealthy shield backend returns fallback",
+			shield:      unhealthyShieldBackend,
+			fallback:    fallbackBackend,
+			expected:    fallbackBackend,
+			expectError: &value.String{Value: "ESHIELDUNHEALTHY"},
 		},
 		{
-			name:     "non-shield director returns fallback",
-			shield:   nonShieldBackend,
-			fallback: fallbackBackend,
-			expected: fallbackBackend,
+			name:        "non-shield director returns fallback",
+			shield:      nonShieldBackend,
+			fallback:    fallbackBackend,
+			expected:    fallbackBackend,
+			expectError: nil,
 		},
 		{
-			name:     "backend without director returns fallback",
-			shield:   regularBackend,
-			fallback: fallbackBackend,
-			expected: fallbackBackend,
+			name:        "backend without director returns fallback",
+			shield:      regularBackend,
+			fallback:    fallbackBackend,
+			expected:    fallbackBackend,
+			expectError: nil,
+		},
+		{
+			name:        "backend without director returns fallback",
+			shield:      regularBackend,
+			fallback:    fallbackBackend,
+			expected:    fallbackBackend,
+			expectError: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			args := []value.Value{tt.shield, tt.fallback}
+			ctx := &context.Context{}
 			result, err := Fastly_try_select_shield(ctx, args...)
 			if err != nil {
 				t.Errorf("Unexpected error: %s", err)
@@ -122,6 +133,18 @@ func Test_Fastly_try_select_shield(t *testing.T) {
 			resultName := result.String()
 			if expectedName != resultName {
 				t.Errorf("Expected backend %s, got %s", expectedName, resultName)
+			}
+
+			if tt.expectError != nil {
+				if ctx.FastlyError == nil {
+					t.Errorf("Expected error %s, got nil", tt.expectError.Value)
+				} else if ctx.FastlyError.Value != tt.expectError.Value {
+					t.Errorf("Expected error %s, got %s", tt.expectError.Value, ctx.FastlyError.Value)
+				}
+			} else {
+				if ctx.FastlyError != nil {
+					t.Errorf("Expected no error, got %s", ctx.FastlyError.Value)
+				}
 			}
 		})
 	}

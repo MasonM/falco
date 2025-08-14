@@ -37,7 +37,7 @@ func Fastly_try_select_shield(ctx *context.Context, args ...value.Value) (value.
 	}
 
 	shield := value.Unwrap[*value.Backend](args[0])
-	fallback := value.Unwrap[*value.Backend](args[0])
+	fallback := value.Unwrap[*value.Backend](args[1])
 
 	// If first argument is not a shield director, return fallback
 	if shield.Director == nil {
@@ -46,7 +46,9 @@ func Fastly_try_select_shield(ctx *context.Context, args ...value.Value) (value.
 	if !strings.EqualFold(shield.Director.Type, "shield") {
 		return fallback, nil
 	}
+	if !shield.Healthy.Load() {
+		return fallback, nil
+	}
 
-	// Note that our interpreter could not consider about director/backend is healthy.
 	return shield, nil
 }

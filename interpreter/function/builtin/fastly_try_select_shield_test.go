@@ -3,7 +3,12 @@
 package builtin
 
 import (
+	"sync/atomic"
 	"testing"
+
+	"github.com/ysugimoto/falco/ast"
+	"github.com/ysugimoto/falco/interpreter/context"
+	"github.com/ysugimoto/falco/interpreter/value"
 )
 
 // Fastly built-in function testing implementation of fastly.try_select_shield
@@ -11,5 +16,136 @@ import (
 // - BACKEND, BACKEND
 // Reference: https://www.fastly.com/documentation/reference/vcl/functions/miscellaneous/fastly-try-select-shield/
 func Test_Fastly_try_select_shield(t *testing.T) {
-	t.Skip("Test Builtin function fastly.try_select_shield should be impelemented")
+	// Create test backends
+	shieldBackend := &value.Backend{
+		Value: &ast.BackendDeclaration{
+			Name: &ast.Ident{Value: "shield_backend"},
+		},
+		Director: &value.DirectorConfig{
+			Type: "shield",
+			Name: "shield_director",
+		},
+		Healthy: &atomic.Bool{},
+	}
+	shieldBackend.Healthy.Store(true)
+
+	unhealthyShieldBackend := &value.Backend{
+		Value: &ast.BackendDeclaration{
+			Name: &ast.Ident{Value: "unhealthy_shield_backend"},
+		},
+		Director: &value.DirectorConfig{
+			Type: "shield",
+			Name: "unhealthy_shield_director",
+		},
+		Healthy: &atomic.Bool{},
+	}
+	unhealthyShieldBackend.Healthy.Store(false)
+
+	nonShieldBackend := &value.Backend{
+		Value: &ast.BackendDeclaration{
+			Name: &ast.Ident{Value: "non_shield_backend"},
+		},
+		Director: &value.DirectorConfig{
+			Type: "random",
+			Name: "random_director",
+		},
+		Healthy: &atomic.Bool{},
+	}
+	nonShieldBackend.Healthy.Store(true)
+
+	regularBackend := &value.Backend{
+		Value: &ast.BackendDeclaration{
+			Name: &ast.Ident{Value: "regular_backend"},
+		},
+		Director: nil, // No director
+		Healthy:  &atomic.Bool{},
+	}
+	regularBackend.Healthy.Store(true)
+
+	fallbackBackend := &value.Backend{
+		Value: &ast.BackendDeclaration{
+			Name: &ast.Ident{Value: "fallback_backend"},
+		},
+		Healthy: &atomic.Bool{},
+	}
+	fallbackBackend.Healthy.Store(true)
+
+	tests := []struct {
+		name        string
+		shield      *value.Backend
+		fallback    *value.Backend
+		expected    *value.Backend
+		expectError *value.String
+	}{
+		{
+			name:        "healthy shield backend returns shield",
+			shield:      shieldBackend,
+			fallback:    fallbackBackend,
+			expected:    shieldBackend,
+			expectError: nil,
+		},
+		{
+			name:        "unhealthy shield backend returns fallback",
+			shield:      unhealthyShieldBackend,
+			fallback:    fallbackBackend,
+			expected:    fallbackBackend,
+			expectError: &value.String{Value: "ESHIELDUNHEALTHY"},
+		},
+		{
+			name:        "non-shield director returns fallback",
+			shield:      nonShieldBackend,
+			fallback:    fallbackBackend,
+			expected:    fallbackBackend,
+			expectError: nil,
+		},
+		{
+			name:        "backend without director returns fallback",
+			shield:      regularBackend,
+			fallback:    fallbackBackend,
+			expected:    fallbackBackend,
+			expectError: nil,
+		},
+		{
+			name:        "backend without director returns fallback",
+			shield:      regularBackend,
+			fallback:    fallbackBackend,
+			expected:    fallbackBackend,
+			expectError: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := []value.Value{tt.shield, tt.fallback}
+			ctx := &context.Context{}
+			result, err := Fastly_try_select_shield(ctx, args...)
+			if err != nil {
+				t.Errorf("Unexpected error: %s", err)
+				return
+			}
+
+			if result.Type() != value.BackendType {
+				t.Errorf("Expected return type BACKEND, got %s", result.Type())
+			}
+
+			// Compare backend names instead of full structs to avoid atomic.Bool comparison issues
+			expectedName := tt.expected.String()
+			resultName := result.String()
+			if expectedName != resultName {
+				t.Errorf("Expected backend %s, got %s", expectedName, resultName)
+			}
+
+			if tt.expectError != nil {
+				if ctx.FastlyError == nil {
+					t.Errorf("Expected error %s, got nil", tt.expectError.Value)
+				} else if ctx.FastlyError.Value != tt.expectError.Value {
+					t.Errorf("Expected error %s, got %s", tt.expectError.Value, ctx.FastlyError.Value)
+				}
+			} else {
+				if ctx.FastlyError != nil {
+					t.Errorf("Expected no error, got %s", ctx.FastlyError.Value)
+				}
+			}
+		})
+	}
 }

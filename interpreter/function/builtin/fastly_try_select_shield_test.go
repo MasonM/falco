@@ -71,45 +71,44 @@ func Test_Fastly_try_select_shield(t *testing.T) {
 	fallbackBackend.Healthy.Store(true)
 
 	tests := []struct {
-		name        string
-		shield      *value.Backend
-		fallback    *value.Backend
-		expected    *value.Backend
+		name     string
+		shield   *value.Backend
+		fallback *value.Backend
+		expected *value.Backend
 		expectError *value.String
 	}{
 		{
-			name:        "healthy shield backend returns shield",
-			shield:      shieldBackend,
-			fallback:    fallbackBackend,
-			expected:    shieldBackend,
+			name:     "healthy shield backend returns shield",
+			shield:   shieldBackend,
+			fallback: fallbackBackend,
+			expected: shieldBackend,
 			expectError: nil,
 		},
 		{
-			name:        "unhealthy shield backend returns fallback",
-			shield:      unhealthyShieldBackend,
-			fallback:    fallbackBackend,
-			expected:    fallbackBackend,
+			name:     "unhealthy shield backend returns fallback",
+			shield:   unhealthyShieldBackend,
+			fallback: fallbackBackend,
+			expected: fallbackBackend,
 			expectError: &value.String{Value: "ESHIELDUNHEALTHY"},
 		},
 		{
-			name:        "non-shield director returns fallback",
-			shield:      nonShieldBackend,
-			fallback:    fallbackBackend,
-			expected:    fallbackBackend,
+			name:     "non-shield director returns fallback",
+			shield:   nonShieldBackend,
+			fallback: fallbackBackend,
+			expected: fallbackBackend,
+		},
+		{
+			name:     "backend without director returns fallback",
+			shield:   regularBackend,
+			fallback: fallbackBackend,
+			expected: fallbackBackend,
 			expectError: nil,
 		},
 		{
-			name:        "backend without director returns fallback",
-			shield:      regularBackend,
-			fallback:    fallbackBackend,
-			expected:    fallbackBackend,
-			expectError: nil,
-		},
-		{
-			name:        "backend without director returns fallback",
-			shield:      regularBackend,
-			fallback:    fallbackBackend,
-			expected:    fallbackBackend,
+			name:     "backend without director returns fallback",
+			shield:   regularBackend,
+			fallback: fallbackBackend,
+			expected: fallbackBackend,
 			expectError: nil,
 		},
 	}
@@ -134,7 +133,6 @@ func Test_Fastly_try_select_shield(t *testing.T) {
 			if expectedName != resultName {
 				t.Errorf("Expected backend %s, got %s", expectedName, resultName)
 			}
-
 			if tt.expectError != nil {
 				if ctx.FastlyError == nil {
 					t.Errorf("Expected error %s, got nil", tt.expectError.Value)

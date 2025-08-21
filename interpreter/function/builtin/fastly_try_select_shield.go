@@ -3,8 +3,6 @@
 package builtin
 
 import (
-	"strings"
-
 	"github.com/ysugimoto/falco/interpreter/context"
 	"github.com/ysugimoto/falco/interpreter/function/errors"
 	"github.com/ysugimoto/falco/interpreter/value"
@@ -43,10 +41,10 @@ func Fastly_try_select_shield(ctx *context.Context, args ...value.Value) (value.
 	if shield.Director == nil {
 		return fallback, nil
 	}
-	if !strings.EqualFold(shield.Director.Type, "shield") {
+	if shield.Director.Type != value.DIRECTORTYPE_SHIELD {
 		return fallback, nil
 	}
-	if !shield.Healthy.Load() {
+	if shield.Healthy == nil || !shield.Healthy.Load() {
 		ctx.FastlyError = &value.String{Value: "ESHIELDUNHEALTHY"}
 		return fallback, nil
 	}

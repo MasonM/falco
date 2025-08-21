@@ -45,6 +45,7 @@ func Fastly_try_select_shield(ctx *context.Context, args ...value.Value) (value.
 		return fallback, nil
 	}
 	if shield.Healthy == nil || !shield.Healthy.Load() {
+		ctx.FastlyError = &value.String{Value: "ESHIELDUNHEALTHY"}
 		return fallback, nil
 	}
 

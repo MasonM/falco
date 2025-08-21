@@ -75,18 +75,21 @@ func Test_Fastly_try_select_shield(t *testing.T) {
 		shield   *value.Backend
 		fallback *value.Backend
 		expected *value.Backend
+		expectError *value.String
 	}{
 		{
 			name:     "healthy shield backend returns shield",
 			shield:   shieldBackend,
 			fallback: fallbackBackend,
 			expected: shieldBackend,
+			expectError: nil,
 		},
 		{
 			name:     "unhealthy shield backend returns fallback",
 			shield:   unhealthyShieldBackend,
 			fallback: fallbackBackend,
 			expected: fallbackBackend,
+			expectError: &value.String{Value: "ESHIELDUNHEALTHY"},
 		},
 		{
 			name:     "non-shield director returns fallback",
@@ -99,12 +102,14 @@ func Test_Fastly_try_select_shield(t *testing.T) {
 			shield:   regularBackend,
 			fallback: fallbackBackend,
 			expected: fallbackBackend,
+			expectError: nil,
 		},
 		{
 			name:     "backend without director returns fallback",
 			shield:   regularBackend,
 			fallback: fallbackBackend,
 			expected: fallbackBackend,
+			expectError: nil,
 		},
 	}
 
@@ -127,6 +132,17 @@ func Test_Fastly_try_select_shield(t *testing.T) {
 			resultName := result.String()
 			if expectedName != resultName {
 				t.Errorf("Expected backend %s, got %s", expectedName, resultName)
+			}
+			if tt.expectError != nil {
+				if ctx.FastlyError == nil {
+					t.Errorf("Expected error %s, got nil", tt.expectError.Value)
+				} else if ctx.FastlyError.Value != tt.expectError.Value {
+					t.Errorf("Expected error %s, got %s", tt.expectError.Value, ctx.FastlyError.Value)
+				}
+			} else {
+				if ctx.FastlyError != nil {
+					t.Errorf("Expected no error, got %s", ctx.FastlyError.Value)
+				}
 			}
 		})
 	}
